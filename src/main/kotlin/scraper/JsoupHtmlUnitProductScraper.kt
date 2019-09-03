@@ -1,5 +1,8 @@
 package scraper
 
+import com.gargoylesoftware.htmlunit.BrowserVersion
+import com.gargoylesoftware.htmlunit.WebClient
+import com.gargoylesoftware.htmlunit.html.HtmlPage
 import model.Product
 import org.apache.commons.io.FileUtils
 import org.apache.commons.validator.routines.UrlValidator
@@ -18,19 +21,9 @@ import java.util.regex.Pattern
 import java.util.stream.Collectors
 
 
-const val CONNECT_TIMEOUT = 3
-const val READ_TIMEOUT = 4
-const val INVALID_IMAGE_PATTERN = "([^\\s]+(\\.(?i)(gif|bmp|png))$)"
-const val JSONLD_SCHEMA="JSON-LD"
-const val RDFA_SCHEMA="RDFa"
-const val MICRODATA_SCHEMA="Microdata"
-const val PRODUCT_SCHEMA_TYPE="Product"
-const val ITEMPAGE_SCHEMA_TYPE="ItemPage"
-const val CHROME_24 = "Mozilla/5.0 (Windows NT 6.2; WOW64) AppleWebKit/537.15 (KHTML, like Gecko) Chrome/24.0.1295.0 Safari/537.15"
-const val CHROME_69_MOBILE = "Mozilla/5.0 (Linux; Android 6.0.1; SM-G532M Build/MMB29T) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Mobile Safari/537.36"
-const val CHROME_76_DESKTOP = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.100 Safari/537.36"
-
-class JsoupProductScraper (var url:String) {
+// this class uses HtmlUnit to process the url and get the html page as a string
+// while Jsoup is used to traverse the documents in order to get the necessary data
+class JsoupHtmlUnitProductScraper (var url:String) {
 
 
     private val LOGGER = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME)
@@ -38,8 +31,18 @@ class JsoupProductScraper (var url:String) {
     private var htmlDocument: Document
 
     init {
-        htmlDocument = Jsoup.connect(url).userAgent(CHROME_69_MOBILE).get()
-      //  LOGGER.info("This is the html page : " + htmlDocument.html())
+        val webClient = WebClient(BrowserVersion.CHROME)
+        webClient.options.setUseInsecureSSL(true)
+
+        // continues even when there was an error executing javascripts on the html page
+        webClient.options.isThrowExceptionOnScriptError = false;
+
+        webClient.options.isThrowExceptionOnFailingStatusCode = false;
+
+        var htmlString  = webClient.getPage<HtmlPage>(url).asXml()
+
+        //LOGGER.info("This is the html page : " + htmlString)
+        htmlDocument = Jsoup.parse(htmlString)
         LOGGER.level = Level.INFO
     }
 
@@ -286,7 +289,7 @@ class JsoupProductScraper (var url:String) {
 
         for (jsonld in elements) {
             jsonList.add(jsonld.data())
-           // LOGGER.info("This is the raw json output : " + jsonld.data())
+            // LOGGER.info("This is the raw json output : " + jsonld.data())
         }
 
         return jsonList
@@ -302,7 +305,7 @@ class JsoupProductScraper (var url:String) {
 
             if (getSchemaEntityTypeFromJsonLd(jsonldElement.data())  == PRODUCT_SCHEMA_TYPE || getSchemaEntityTypeFromJsonLd(jsonldElement.data()) ==ITEMPAGE_SCHEMA_TYPE){
                 jsonList.add(jsonldElement.data())
-               // LOGGER.info("This is the raw json output : " + jsonldElement.data())
+                // LOGGER.info("This is the raw json output : " + jsonldElement.data())
             }
 
         }
@@ -315,7 +318,7 @@ class JsoupProductScraper (var url:String) {
     private fun getSchemaEntityTypeFromJsonLd(jsonObject:String):String{
         val formattedJson = formatJsonToValidJSonObject(jsonObject)
         val jsonResult = JSONObject(formattedJson)
-       // LOGGER.info("The Schema type for this json is : " + jsonResult.get("@type"))
+        // LOGGER.info("The Schema type for this json is : " + jsonResult.get("@type"))
         return jsonResult.get("@type") as String
 
     }
@@ -348,10 +351,10 @@ class JsoupProductScraper (var url:String) {
     private fun convertJSONtoXML(json:String ): String {
 
         val formatedJson = formatJsonToValidJSonObject(json)
-       // LOGGER.info("This is the formated json output : " + formatedJson)
+        // LOGGER.info("This is the formated json output : " + formatedJson)
         val jsonFileObject = org.json.JSONObject(formatedJson) ;
         val xml = XML.toString(jsonFileObject)
-      //  LOGGER.info("This is the xml output : " + xml)
+        //  LOGGER.info("This is the xml output : " + xml)
         return xml
 
     }
@@ -360,5 +363,6 @@ class JsoupProductScraper (var url:String) {
         val doc = Jsoup.parse(xml, "", Parser.xmlParser())
         return doc.select(cssQuery)
     }
+
 
 }
