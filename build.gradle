@@ -18,7 +18,7 @@ dependencies {
     implementation 'commons-io:commons-io:2.6'
     implementation 'commons-validator:commons-validator:1.6'
     implementation 'net.sourceforge.htmlunit:htmlunit:2.36.0'
-
+    implementation 'org.apache.commons:commons-imaging:1.0-alpha1'
 
 
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"

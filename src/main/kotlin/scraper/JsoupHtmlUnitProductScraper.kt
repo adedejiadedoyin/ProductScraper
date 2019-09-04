@@ -4,7 +4,6 @@ import com.gargoylesoftware.htmlunit.BrowserVersion
 import com.gargoylesoftware.htmlunit.WebClient
 import com.gargoylesoftware.htmlunit.html.HtmlPage
 import model.Product
-import org.apache.commons.io.FileUtils
 import org.apache.commons.validator.routines.UrlValidator
 import org.json.JSONObject
 import org.json.XML
@@ -13,12 +12,13 @@ import org.jsoup.nodes.Document
 import org.jsoup.parser.Parser
 import org.jsoup.select.Elements
 import util.isNullOrEmpty
-import java.io.File
+import java.awt.image.BufferedImage
 import java.net.URL
 import java.util.logging.Level
 import java.util.logging.Logger
 import java.util.regex.Pattern
 import java.util.stream.Collectors
+import javax.imageio.ImageIO
 
 
 // this class uses HtmlUnit to process the url and get the html page as a string
@@ -53,16 +53,18 @@ class JsoupHtmlUnitProductScraper (var url:String) {
         //  product.description = fetchDescription()
         //  product.image = fetchImages()
         product.url = fetchUrl()
-        fetchDataFromJsonLdSchema(htmlDocument)
-        fetchValidImagesFromPage(htmlDocument)
+        fetchDataFromJsonLdSchema()
+        fetchValidImagesFromPage()
         return product
     }
 
 
     /*
-    FETCH TITLE OF PRODUCT/ITEM
-     */
-    private fun fetchTitle(): String {
+  ------------------------  PUBLIC METHODS -------------------------------------------------------------
+   */
+
+    //Fetches Title of item/product
+    fun fetchTitle(): String {
 
         var title: String = ""
         var condition = true
@@ -71,7 +73,7 @@ class JsoupHtmlUnitProductScraper (var url:String) {
 
             when (position) {
                 1 -> {
-                    title = fetchTitleFromMetaTitle(htmlDocument)
+                    title = fetchTitleFromMetaTitle()
                     if (isNullOrEmpty(title)) // if it can't be found , increment position in order to move to the next algorithm
                         position++
                     else
@@ -79,7 +81,7 @@ class JsoupHtmlUnitProductScraper (var url:String) {
                 }
 
                 2 -> {
-                    title = fetchTitleFromMetaFacebookOG(htmlDocument)
+                    title = fetchTitleFromMetaFacebookOG()
                     if (isNullOrEmpty(title))
                         position++
                     else
@@ -87,7 +89,7 @@ class JsoupHtmlUnitProductScraper (var url:String) {
                 }
 
                 3 -> {
-                    title = fetchTitleFromMetaTwitter(htmlDocument)
+                    title = fetchTitleFromMetaTwitter()
                     if (isNullOrEmpty(title))
                         position++
                     else
@@ -95,7 +97,7 @@ class JsoupHtmlUnitProductScraper (var url:String) {
                 }
 
                 4 -> {
-                    title = fetchTitleFromTitleTag(htmlDocument)
+                    title = fetchTitleFromTitleTag()
                     if (isNullOrEmpty(title))
                         position++
                     else
@@ -111,43 +113,14 @@ class JsoupHtmlUnitProductScraper (var url:String) {
         return title
     }
 
-    private fun fetchTitleFromMetaTitle(htmlDocument:Document): String {
-        val title = htmlDocument.select("meta[name=title]").attr("content")
-        LOGGER.info( "Product Title from MetaTitle : " + title)
-        return title
-    }
 
-    private fun fetchTitleFromMetaFacebookOG(htmlDocument:Document): String {
-        val title = htmlDocument.select("meta[property=og:title]").attr("content")
-        LOGGER.info("Product Title from MetaFacebookOG : " + title)
-        return title
-    }
-
-    private fun fetchTitleFromMetaTwitter(htmlDocument:Document): String {
-        val title = htmlDocument.select("meta[name=twitter:title]").attr("content")
-        LOGGER.info("Product Title from MetaTwitter : " + title)
-        return title
-    }
-
-    private fun fetchTitleFromTitleTag(htmlDocument:Document): String {
-        val title = htmlDocument.title()// htmlDocument.select("title").get(0).text()
-        LOGGER.info("Product Title from TitleTag : " + title)
-        return title
-    }
-
-
-    /*
-        FETCH URL OF PRODUCT/ITEM
-         */
-    private fun fetchUrl(): String {
+    //Fetches Url of item/product
+    fun fetchUrl(): String {
         return url
     }
 
-
-    /*
-       FETCH IMAGE OF PRODUCT/ITEM
-        */
-    private fun fetchImage(): String {
+    //Fetches image of product/item from facebook og & twitter
+    fun fetchImage(): String {
 
         var imageUrl: String = ""
         var condition = true
@@ -156,7 +129,7 @@ class JsoupHtmlUnitProductScraper (var url:String) {
 
             when (position) {
                 1 -> {
-                    imageUrl = fetchImageFromMetaFacebookOG(htmlDocument)
+                    imageUrl = fetchImageFromMetaFacebookOG()
                     if (isNullOrEmpty(imageUrl)) // if it can't be found , increment position in order to move to the next algorithm
                         position++
                     else
@@ -164,7 +137,7 @@ class JsoupHtmlUnitProductScraper (var url:String) {
                 }
 
                 2 -> {
-                    imageUrl = fetchImageFromMetaTwitter(htmlDocument)
+                    imageUrl = fetchImageFromMetaTwitter()
                     if (isNullOrEmpty(imageUrl))
                         position++
                     else
@@ -180,20 +153,81 @@ class JsoupHtmlUnitProductScraper (var url:String) {
         return imageUrl
     }
 
-    private fun fetchImageFromMetaFacebookOG(htmlDocument:Document): String {
-        val image = htmlDocument.select("meta[property=og:image]").attr("content")
+    // fetches all valid image url from <img> tags found in the html page, scraping out all gifs, small size pictures
+    fun fetchValidImagesFromPage(): MutableList<String> {
+        val imageUrlList = fetchImagesFromPage()
+        val validImageUrlList = mutableListOf<String>()
+        var validImageUrlListWithoutDuplicates: MutableList<String>
+        for (imageUrl in imageUrlList) {
+
+            if (isImageValid(imageUrl) && isUrlValid(imageUrl)){ // checks if the imageUrl is valid ie it is not a GIF or BMP
+                validImageUrlList.add(imageUrl)
+                println("This is a valid image : " + imageUrl)
+            }
+
+        }
+
+        validImageUrlListWithoutDuplicates = removeDuplicatesFromList(validImageUrlList)
+
+        for (imageUrl in validImageUrlListWithoutDuplicates) {
+            println("Without duplicates: This is a valid image : " + imageUrl)
+            isImageOfValidSize(imageUrl)
+        }
+
+
+        println("There are ${imageUrlList.size} total images extracted from this url")
+        println("There are ${validImageUrlList.size} valid images ")
+        println("There are ${validImageUrlListWithoutDuplicates.size} valid images after removing duplicates ")
+        return validImageUrlListWithoutDuplicates
+    }
+
+
+
+
+
+    /*
+    ------------------------  PRIVATE METHODS -------------------------------------------------------------
+     */
+
+
+    private fun fetchTitleFromMetaTitle(): String {
+        val title = htmlDocument.select(META_TITLE_SELECTOR).attr("content")
+        LOGGER.info( "Product Title from MetaTitle : " + title)
+        return title
+    }
+
+    private fun fetchTitleFromMetaFacebookOG(): String {
+        val title = htmlDocument.select(OG_TITLE_SELECTOR).attr("content")
+        LOGGER.info("Product Title from MetaFacebookOG : " + title)
+        return title
+    }
+
+    private fun fetchTitleFromMetaTwitter(): String {
+        val title = htmlDocument.select(TWITTER_TITLE_SELECTOR).attr("content")
+        LOGGER.info("Product Title from MetaTwitter : " + title)
+        return title
+    }
+
+    private fun fetchTitleFromTitleTag(): String {
+        val title = htmlDocument.title()// htmlDocument.select("title").get(0).text()
+        LOGGER.info("Product Title from TitleTag : " + title)
+        return title
+    }
+
+    private fun fetchImageFromMetaFacebookOG(): String {
+        val image = htmlDocument.select(OG_IMAGE_SELECTOR).attr("content")
         LOGGER.info("Product Image from MetaFacebookOG : " + image)
         return image
     }
 
-    private fun fetchImageFromMetaTwitter(htmlDocument:Document): String {
-        val image = htmlDocument.select("meta[name=twitter:image]").attr("content")
+    private fun fetchImageFromMetaTwitter(): String {
+        val image = htmlDocument.select(TWITTER_IMAGE_SELECTOR).attr("content")
         LOGGER.info("Product Image from MetaTwitter : " + image)
         return image
     }
 
     // fetch all links to images
-    private fun fetchImagesFromPage(htmlDocument:Document): MutableList<String> {
+    private fun fetchImagesFromPage(): MutableList<String> {
         val images = htmlDocument.select("img")
         val imageUrlList = mutableListOf<String>()
         for (image in images) {
@@ -212,38 +246,10 @@ class JsoupHtmlUnitProductScraper (var url:String) {
     }
 
 
-    // fetch all valid links to images
-    // scrape out all gifs, small size pictures
-    private fun fetchValidImagesFromPage(htmlDocument:Document): MutableList<String> {
-        val imageUrlList = fetchImagesFromPage(htmlDocument)
-        val validImageUrlList = mutableListOf<String>()
-        var validImageUrlListWithoutDuplicates: MutableList<String>
-        for (imageUrl in imageUrlList) {
-
-            if (isImageValid(imageUrl) && isUrlValid(imageUrl)){ // checks if the imageUrl is valid ie it is not a GIF or BMP
-                validImageUrlList.add(imageUrl);
-                println("This is a valid image : " + imageUrl)
-            }
-
-        }
-
-        validImageUrlListWithoutDuplicates = removeDuplicatesFromList(validImageUrlList)
-
-        for (imageUrl in validImageUrlListWithoutDuplicates) {
-            println("Without duplicates: This is a valid image : " + imageUrl)
-        }
-
-
-        println("There are ${imageUrlList.size} total images extracted from this url")
-        println("There are ${validImageUrlList.size} valid images ")
-        println("There are ${validImageUrlListWithoutDuplicates.size} valid images after removing duplicates ")
-        return validImageUrlListWithoutDuplicates
-    }
-
 
     //Removes duplicates from a List using Java 8 Lambdas
     private fun removeDuplicatesFromList(listWithDuplicates:List<String>): MutableList<String> {
-        return listWithDuplicates.stream().distinct().collect(Collectors.toList());
+        return listWithDuplicates.stream().distinct().collect(Collectors.toList())
     }
 
 
@@ -258,24 +264,37 @@ class JsoupHtmlUnitProductScraper (var url:String) {
     //checks if the extension of the image's url is valid | .gif or .bmp are invalid extensions
     private fun isImageValid(imageUrl:String): Boolean {
         val pattern = Pattern.compile(INVALID_IMAGE_PATTERN)
-        val matcher = pattern.matcher(imageUrl);
-        return !matcher.matches();
+        val matcher = pattern.matcher(imageUrl)
+        return !matcher.matches()
     }
 
-    private fun isImageOfValidSize(imageUrl:String){
-        val destinationOfDownloadedImage = File("image.jpg")
-        FileUtils.copyURLToFile( URL(imageUrl),destinationOfDownloadedImage, CONNECT_TIMEOUT, READ_TIMEOUT);
+    private fun isImageOfValidSize(imageUrl:String): Boolean {
+
+        val connection = URL(imageUrl).openConnection()
+        connection.setRequestProperty(
+            "User-Agent",
+            CHROME_69_MOBILE_BROWSER
+        )
+        connection.connect()
+
+        val image: BufferedImage? = try { ImageIO.read(connection.getInputStream()) } catch (e: Exception) { null }
+        var imageH = image?.height ?: -1
+        var imageW = image?.width ?: -1
+
+        println("The image is  ${imageH}px high and ${imageW}px wide ")
+
+        return !(imageH < VALID_IMAGE_HEIGHT || imageW < VALID_IMAGE_WIDTH)
 
     }
 
-    public fun fetchtMicrodataSchema(htmlDocument:Document): Elements {
+    private fun fetchtMicrodataSchema(): Elements {
 
         val element = htmlDocument.getElementsByAttributeValueContaining("itemtype","http://schema.org/")
         return element
 
     }
 
-    public fun fetchRDFaSchema(htmlDocument:Document): Elements {
+    private fun fetchRDFaSchema(): Elements {
 
         val element = htmlDocument.getElementsByAttributeValueMatching("vocab","http://schema.org/")
         return element
@@ -283,8 +302,8 @@ class JsoupHtmlUnitProductScraper (var url:String) {
     }
 
     // returns a list of all JsonLd files from this html page
-    public fun fetchJsonLd(htmlDocument:Document): MutableList<String> {
-        val elements = htmlDocument.select("script[type=application/ld+json]") //htmlDocument.getElementsByTag("script").attr("type", "application/ld+json")
+    private fun fetchJsonLd(): MutableList<String> {
+        val elements = htmlDocument.select(JSONLD_SELECTOR) //htmlDocument.getElementsByTag("script").attr("type", "application/ld+json")
         val jsonList = mutableListOf<String>()
 
         for (jsonld in elements) {
@@ -297,8 +316,8 @@ class JsoupHtmlUnitProductScraper (var url:String) {
     }
 
     // returns a list of acceptable JsonLd files from this html page; the acceptable ones are of Product, ItemPage
-    public fun fetchFilteredJsonLd(htmlDocument:Document): MutableList<String> {
-        val elements = htmlDocument.select("script[type=application/ld+json]") //htmlDocument.getElementsByTag("script").attr("type", "application/ld+json")
+    private fun fetchFilteredJsonLd(): MutableList<String> {
+        val elements = htmlDocument.select(JSONLD_SELECTOR) //htmlDocument.getElementsByTag("script").attr("type", "application/ld+json")
         val jsonList = mutableListOf<String>()
 
         for (jsonldElement in elements) {
@@ -323,9 +342,9 @@ class JsoupHtmlUnitProductScraper (var url:String) {
 
     }
 
-    private fun fetchDataFromJsonLdSchema(htmlDocument:Document){
+    private fun fetchDataFromJsonLdSchema(){
 
-        for (jsonld in fetchFilteredJsonLd(htmlDocument)) {
+        for (jsonld in fetchFilteredJsonLd()) {
             processJsonLd(jsonld)
         }
     }
@@ -352,7 +371,7 @@ class JsoupHtmlUnitProductScraper (var url:String) {
 
         val formatedJson = formatJsonToValidJSonObject(json)
         // LOGGER.info("This is the formated json output : " + formatedJson)
-        val jsonFileObject = org.json.JSONObject(formatedJson) ;
+        val jsonFileObject = org.json.JSONObject(formatedJson)
         val xml = XML.toString(jsonFileObject)
         //  LOGGER.info("This is the xml output : " + xml)
         return xml
@@ -363,6 +382,5 @@ class JsoupHtmlUnitProductScraper (var url:String) {
         val doc = Jsoup.parse(xml, "", Parser.xmlParser())
         return doc.select(cssQuery)
     }
-
 
 }

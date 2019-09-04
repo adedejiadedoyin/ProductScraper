@@ -9,6 +9,6 @@ fun main(){
     val url5="https://www.next.ie/en/g23360s37"
     val url6="https://www.asos.com/the-north-face/the-north-face-vault-backpack-28-litres-in-black/prd/10253008"
 
-    JsoupProductScraper(url).getProduct()
+    JsoupProductScraper(url3).getProduct()
    // JsoupHtmlUnitProductScraper(url).getProduct()
 }
