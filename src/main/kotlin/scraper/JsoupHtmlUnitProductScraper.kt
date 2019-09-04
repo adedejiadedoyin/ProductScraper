@@ -21,7 +21,7 @@ import java.util.stream.Collectors
 import javax.imageio.ImageIO
 
 
-// this class uses HtmlUnit to process the url and get the html page as a string
+// this class uses HtmlUnit to get the html page as a string
 // while Jsoup is used to traverse the documents in order to get the necessary data
 class JsoupHtmlUnitProductScraper (var url:String) {
 
@@ -263,7 +263,7 @@ class JsoupHtmlUnitProductScraper (var url:String) {
 
     //checks if the extension of the image's url is valid | .gif or .bmp are invalid extensions
     private fun isImageValid(imageUrl:String): Boolean {
-        val pattern = Pattern.compile(INVALID_IMAGE_PATTERN)
+        val pattern = Pattern.compile(INVALID_IMAGE_FILE_EXTENSION_PATTERN)
         val matcher = pattern.matcher(imageUrl)
         return !matcher.matches()
     }
@@ -283,7 +283,7 @@ class JsoupHtmlUnitProductScraper (var url:String) {
 
         println("The image is  ${imageH}px high and ${imageW}px wide ")
 
-        return !(imageH < VALID_IMAGE_HEIGHT || imageW < VALID_IMAGE_WIDTH)
+        return !(imageH < MINIMUM_IMAGE_HEIGHT || imageW < MINIMUM_IMAGE_WIDTH)
 
     }
 

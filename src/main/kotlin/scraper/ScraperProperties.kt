@@ -1,9 +1,9 @@
 package scraper
 
 //Properties for valid images
-const val INVALID_IMAGE_PATTERN = "([^\\s]+(\\.(?i)(gif|bmp|png))$)"
-const val VALID_IMAGE_HEIGHT = 200
-const val VALID_IMAGE_WIDTH = 200
+const val INVALID_IMAGE_FILE_EXTENSION_PATTERN = "([^\\s]+(\\.(?i)(gif|bmp|png))$)"
+const val MINIMUM_IMAGE_HEIGHT = 250
+const val MINIMUM_IMAGE_WIDTH = 250
 
 const val JSONLD_SELECTOR="script[type=application/ld+json]"
 
@@ -18,6 +18,5 @@ const val CHROME_76_DESKTOP_BROWSER = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10
 const val META_TITLE_SELECTOR = "meta[name=title]"
 const val OG_TITLE_SELECTOR = "meta[property=og:title]"
 const val TWITTER_TITLE_SELECTOR = "meta[name=twitter:title]"
-const val META_IMAGE_SELECTOR = "meta[name=title]"
 const val OG_IMAGE_SELECTOR = "meta[property=og:image]"
 const val TWITTER_IMAGE_SELECTOR = "meta[name=twitter:image]"
